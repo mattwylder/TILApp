@@ -24,19 +24,23 @@ struct AcronymsController: RouteCollection {
         acronymRoutes.delete(":acronymID", "categories", ":categoryID", use: removeCategoriesHandler)
     }
     
-    func getAllHander(_ req: Request) -> EventLoopFuture<[Acronym]> {
-        Acronym.query(on: req.db).all()
+    func getAllHander(_ req: Request) async throws -> [Acronym] {
+        try await Acronym.query(on: req.db).all()
     }
     
-    func createHandler(_ req: Request) throws -> EventLoopFuture<Acronym> {
+    func createHandler(_ req: Request) async throws -> Acronym {
         let data = try req.content.decode(CreateAcronymData.self)
         let acronym = Acronym(short: data.short, long: data.long, userID: data.userID)
-        return acronym.save(on: req.db).map { acronym }
+        try await acronym.save(on: req.db)
+        return acronym // EventLoopFuture version returns result of save. Does that contain a uuid that isn't in the one we construct here? Async version of save returns void
     }
     
-    func getHandler(_ req: Request) -> EventLoopFuture<Acronym> {
-        Acronym.find(req.parameters.get("acronymID"), on: req.db)
-            .unwrap(or: Abort(.notFound))
+    func getHandler(_ req: Request) async throws -> Acronym {
+        guard let acronym = try await Acronym.find(req.parameters.get("acronymID"), on: req.db) else {
+            throw Abort(.notFound)
+        }
+
+        return acronym
     }
     
     func updateHandler(_ req: Request) throws -> EventLoopFuture<Acronym> {
@@ -52,6 +56,19 @@ struct AcronymsController: RouteCollection {
                     acronym
                 }
             }
+    }
+    
+    func updateHandlerAsync(_ req: Request) async throws -> Acronym {
+        let updateData = try req.content.decode(CreateAcronymData.self)
+        let uuid:UUID? = req.parameters.get("acronymID")
+        guard let value = try await Acronym.find(uuid, on: req.db) else {
+            throw Abort(.notFound)
+        }
+        value.short = updateData.short
+        value.long = updateData.long
+        value.$user.id = updateData.userID
+        try await value.save(on: req.db)
+        return value
     }
     
     func deleteHandler(_ req: Request) -> EventLoopFuture<HTTPStatus> {
