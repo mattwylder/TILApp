@@ -12,6 +12,7 @@ struct WebsiteController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         routes.get(use: indexHandler)
         routes.get("acronyms", ":acronymID", use: acronymHandler)
+        routes.get("users", ":userID", use: userHandler)
     }
     
     func indexHandler(_ req: Request) async throws -> View {
@@ -30,6 +31,15 @@ struct WebsiteController: RouteCollection {
         let context = AcronymContext(title: acronym.short, acronym: acronym, user: user)
         return try await req.view.render("acronym", context)
     }
+    
+    func userHandler(_ req: Request) async throws -> View {
+        guard let user = try await User.find(req.parameters.get("userID"), on: req.db) else {
+            throw Abort(.notFound)
+        }
+        let acronyms = try await user.$acronyms.get(on: req.db)
+        let context = UserContext(title: user.name, user: user, acronyms: acronyms)
+        return try await req.view.render("user", context)
+    }
 }
 
 struct IndexContext: Encodable {
@@ -41,4 +51,10 @@ struct AcronymContext: Encodable {
     let title: String
     let acronym: Acronym
     let user: User
+}
+
+struct UserContext: Encodable {
+    let title: String
+    let user: User
+    let acronyms: [Acronym]
 }
