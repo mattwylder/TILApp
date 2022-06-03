@@ -22,7 +22,11 @@
                 <li class="nav-item
                             #if(title == "Home page"): active #endif">
                             <a href="/" class="nav-link">Home</a>
-                            </li>
+                </li>
+                <li class="nav-item
+                            #if(title == "All Users"): active #endif">
+                            <a href="/users" class="nav-link">All Users</a<
+                </li>
                 </ul>
             </div>
         </nav>
